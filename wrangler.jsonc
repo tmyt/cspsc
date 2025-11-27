@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cspsc",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-17",
+  "containers": [
+    {
+      "max_instances": 2,
+      "class_name": "CompilerService",
+      "image": "./container/Dockerfile"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "COMPILER_SERVICE",
+        "class_name": "CompilerService"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["CompilerService"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./assets",
+    "binding": "ASSETS"
+  }
+}

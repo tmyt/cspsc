@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CSPSC</title>
+  </head>
+  <body>
+    <h1>Welcome to CSPSC!</h1>
+    <textarea id="code" rows="10" cols="50">// Write your code here</textarea>
+    <br />
+    <button id="compileBtn">Compile</button>
+    <h2>Output:</h2>
+    <pre id="output"></pre>
+    <script>
+      document.getElementById("compileBtn").onclick = async () => {
+        const code = document.getElementById("code").value;
+        const response = await fetch("/compile", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: code,
+        });
+        const result = await response.text();
+        document.getElementById("output").textContent = result;
+      };
+    </script>
+  </body>
+</html>
