@@ -287,6 +287,13 @@ namespace CsPsc
                     EmitToStringSyntax(node.Right);
                 }
                 Emit(op);
+                if (!IsExpressionStatement(node))
+                {
+                    // When assignment is used as an expression, duplicate the value and reorder stack
+                    // so that the assigned value remains on stack after store/put
+                    var roll = node.Left is ElementAccessExpressionSyntax ? "4 1 roll" : "3 1 roll";
+                    Emit($"dup {roll}");
+                }
                 Emit(store);
             }
 
