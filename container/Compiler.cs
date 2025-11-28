@@ -290,7 +290,11 @@ namespace CsPsc
                 if (!IsExpressionStatement(node))
                 {
                     // When assignment is used as an expression, duplicate the value and reorder stack
-                    // so that the assigned value remains on stack after store/put
+                    // so that the assigned value remains on stack after store/put.
+                    // For simple variable: stack is [/name value], dup gives [/name value value],
+                    //   then "3 1 roll" gives [value /name value], store consumes 2, leaving [value].
+                    // For element access: stack is [array index value], dup gives [array index value value],
+                    //   then "4 1 roll" gives [value array index value], put consumes 3, leaving [value].
                     var roll = node.Left is ElementAccessExpressionSyntax ? "4 1 roll" : "3 1 roll";
                     Emit($"dup {roll}");
                 }
