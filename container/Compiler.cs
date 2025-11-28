@@ -637,6 +637,12 @@ namespace CsPsc
                 Emit(string.Join(" ", Enumerable.Range(0, nestedLoops + 1).Select(_ => "exit")));
             }
 
+            public override void VisitUsingDirective(UsingDirectiveSyntax node)
+            {
+                _handled = true;
+                // Do nothing for using directives
+            }
+
             public override void VisitExpressionStatement(ExpressionStatementSyntax node)
             {
                 _handled = true;
