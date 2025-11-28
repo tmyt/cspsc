@@ -287,6 +287,7 @@ namespace CsPsc
                     EmitToStringSyntax(node.Right);
                 }
                 Emit(op);
+                Emit($"dup {(node.Left is ElementAccessExpressionSyntax ? 4 : 3)} 1 roll");
                 Emit(store);
             }
 
@@ -310,20 +311,14 @@ namespace CsPsc
                             VisitElementIndexerSyntax(elementAccess);
                             VisitElementIndexerSyntax(elementAccess);
                             Emit($"get 1 {op} put");
-                            if (!IsExpressionStatement(node))
-                            {
-                                VisitElementIndexerSyntax(elementAccess);
-                                Emit("get");
-                            }
+                            VisitElementIndexerSyntax(elementAccess);
+                            Emit("get");
                         }
                         else
                         {
                             Emit($"/{node.Operand} {node.Operand}");
                             Emit($"1 {op} store");
-                            if (!IsExpressionStatement(node))
-                            {
-                                Emit(node.Operand.ToString());
-                            }
+                            Emit(node.Operand.ToString());
                         }
                         return;
                     case SyntaxKind.BitwiseNotExpression:
@@ -346,25 +341,15 @@ namespace CsPsc
                         var op = node.Kind() == SyntaxKind.PostIncrementExpression ? "add" : "sub";
                         if (node.Operand is ElementAccessExpressionSyntax elementAccess)
                         {
-                            if (!IsExpressionStatement(node))
-                            {
-                                VisitElementIndexerSyntax(elementAccess);
-                                Emit("get");
-                            }
+                            VisitElementIndexerSyntax(elementAccess);
+                            Emit("get");
                             VisitElementIndexerSyntax(elementAccess);
                             VisitElementIndexerSyntax(elementAccess);
                             Emit($"get 1 {op} put");
                         }
                         else
                         {
-                            if (!IsExpressionStatement(node))
-                            {
-                                Emit($"{node.Operand} /{node.Operand}");
-                            }
-                            else
-                            {
-                                Emit($"/{node.Operand}");
-                            }
+                            Emit($"{node.Operand} /{node.Operand}");
                             Emit($"{node.Operand} 1 {op} store");
                         }
                         return;
@@ -406,6 +391,10 @@ namespace CsPsc
                 foreach (var incrementor in node.Incrementors)
                 {
                     base.Visit(incrementor);
+                    if (HasExpressionValue(incrementor))
+                    {
+                        Emit("pop");
+                    }
                 }
                 Emit("} loop");
                 if (node.Declaration?.Variables.Count > 0)
@@ -647,6 +636,10 @@ namespace CsPsc
             {
                 _handled = true;
                 base.VisitExpressionStatement(node);
+                if (HasExpressionValue(node.Expression))
+                {
+                    Emit("pop");
+                }
             }
 
             public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
@@ -823,8 +816,6 @@ namespace CsPsc
                 };
             }
 
-            private static bool IsExpressionStatement(SyntaxNode node) => node.Parent != null && (node.Parent.IsKind(SyntaxKind.ExpressionStatement) || node.Parent.IsKind(SyntaxKind.ForStatement));
-
             private void Emit(string code)
             {
                 _script.Append(code);
@@ -878,6 +869,13 @@ namespace CsPsc
                         s.Kind is SymbolKind.Local or SymbolKind.Parameter &&
                         !flow.VariablesDeclared.Contains(s));
                 return captured?.Any() == true;
+            }
+
+            private bool HasExpressionValue(SyntaxNode node)
+            {
+                var typeInfo = _semanticModel.GetTypeInfo(node);
+                var type = typeInfo.Type;
+                return type != null && type.TypeKind != TypeKind.Error && type.SpecialType != SpecialType.System_Void;
             }
         }
     }
