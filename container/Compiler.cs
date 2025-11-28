@@ -641,6 +641,11 @@ namespace CsPsc
             {
                 _handled = true;
                 base.VisitExpressionStatement(node);
+                // Discard return value if expression has a non-void return type
+                if (HasReturnValue(node.Expression))
+                {
+                    Emit("pop");
+                }
             }
 
             public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
@@ -858,6 +863,18 @@ namespace CsPsc
                 var typeInfo = _semanticModel.GetTypeInfo(node);
                 var type = typeInfo.Type;
                 return type?.SpecialType is SpecialType.System_Boolean;
+            }
+
+            private bool HasReturnValue(ExpressionSyntax node)
+            {
+                var typeInfo = _semanticModel.GetTypeInfo(node);
+                var type = typeInfo.Type;
+                // Error types (undefined functions like println) are treated as void
+                if (type == null || type.TypeKind == TypeKind.Error)
+                {
+                    return false;
+                }
+                return type.SpecialType != SpecialType.System_Void;
             }
 
             private bool HasCapturedVariables(LocalFunctionStatementSyntax node)
