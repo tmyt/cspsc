@@ -406,9 +406,8 @@ namespace CsPsc
                 foreach (var incrementor in node.Incrementors)
                 {
                     base.Visit(incrementor);
-                    // Discard return value if expression has a non-void return type
-                    // Skip for statement-like expressions as they don't push values onto the stack
-                    if (HasReturnValue(incrementor) && !IsStatementLikeExpression(incrementor))
+                    // Discard return value if invocation expression has a non-void return type
+                    if (incrementor is InvocationExpressionSyntax && HasReturnValue(incrementor))
                     {
                         Emit("pop");
                     }
@@ -647,9 +646,8 @@ namespace CsPsc
             {
                 _handled = true;
                 base.VisitExpressionStatement(node);
-                // Discard return value if expression has a non-void return type
-                // Skip for statement-like expressions as they don't push values onto the stack
-                if (HasReturnValue(node.Expression) && !IsStatementLikeExpression(node.Expression))
+                // Discard return value if invocation expression has a non-void return type
+                if (node.Expression is InvocationExpressionSyntax && HasReturnValue(node.Expression))
                 {
                     Emit("pop");
                 }
@@ -830,13 +828,6 @@ namespace CsPsc
             }
 
             private static bool IsExpressionStatement(SyntaxNode node) => node.Parent != null && (node.Parent.IsKind(SyntaxKind.ExpressionStatement) || node.Parent.IsKind(SyntaxKind.ForStatement));
-
-            private static bool IsStatementLikeExpression(ExpressionSyntax node) =>
-                node.IsKind(SyntaxKind.PreIncrementExpression) ||
-                node.IsKind(SyntaxKind.PreDecrementExpression) ||
-                node.IsKind(SyntaxKind.PostIncrementExpression) ||
-                node.IsKind(SyntaxKind.PostDecrementExpression) ||
-                node is AssignmentExpressionSyntax;
 
             private void Emit(string code)
             {
