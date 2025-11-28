@@ -199,7 +199,7 @@ namespace CsPsc
                     }
                     if (node.IsKind(SyntaxKind.AddExpression) && resultIsString)
                     {
-                        VisitToStringSyntax(node.Left);
+                        EmitToStringSyntax(node.Left);
                     }
                     base.Visit(node.Right);
                     if (node.IsKind(SyntaxKind.ModuloExpression) && IsReal(node.Right))
@@ -208,7 +208,7 @@ namespace CsPsc
                     }
                     if (node.IsKind(SyntaxKind.AddExpression) && resultIsString)
                     {
-                        VisitToStringSyntax(node.Right);
+                        EmitToStringSyntax(node.Right);
                     }
                     if (node.IsKind(SyntaxKind.DivideExpression))
                     {
@@ -284,7 +284,7 @@ namespace CsPsc
                 }
                 if (node.IsKind(SyntaxKind.AddAssignmentExpression) && IsString(node.Left) && !IsString(node.Right))
                 {
-                    VisitToStringSyntax(node.Right);
+                    EmitToStringSyntax(node.Right);
                 }
                 Emit(op);
                 Emit(store);
@@ -539,7 +539,7 @@ namespace CsPsc
                     base.Visit(memberAccess.Expression);
                     if (memberAccess.Name.Identifier.ValueText == "ToString")
                     {
-                        VisitToStringSyntax(memberAccess.Expression);
+                        EmitToStringSyntax(memberAccess.Expression);
                         return;
                     }
                     throw new NotImplementedException("Only ToString member access is supported.");
@@ -722,7 +722,7 @@ namespace CsPsc
                     else if (content is InterpolationSyntax interpolation)
                     {
                         base.Visit(interpolation.Expression);
-                        VisitToStringSyntax(interpolation.Expression);
+                        EmitToStringSyntax(interpolation.Expression);
                     }
                     else
                     {
@@ -751,7 +751,7 @@ namespace CsPsc
                 }
             }
 
-            private void VisitToStringSyntax(SyntaxNode node)
+            private void EmitToStringSyntax(SyntaxNode node)
             {
                 Emit(MakeToString());
                 return;
