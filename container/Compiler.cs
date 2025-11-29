@@ -189,10 +189,9 @@ namespace CsPsc
                         Emit($"/{param.Identifier.ValueText} exch def");
                     }
 
-                    var hasReturnValue = node.Body.DescendantNodes()
-                        .Where(n => n.IsKind(SyntaxKind.ReturnStatement))
-                        .OfType<ReturnStatementSyntax>()
-                        .Any(n => n.Expression != null);
+                    var returnType = _semanticModel.GetTypeInfo(node.ReturnType).Type
+                        ?? throw new InvalidOperationException("Cannot determine the return type of the function.");
+                    var hasReturnValue = returnType.SpecialType == SpecialType.System_Void;
                     Emit("mark");
                     Emit("{ ");
                     base.Visit(node.Body);
