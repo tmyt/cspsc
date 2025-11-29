@@ -222,11 +222,11 @@ namespace CsPsc
             public override void VisitBlock(BlockSyntax node)
             {
                 _handled = true;
-                var localVarsCount = node.ChildNodes()
+                var localVarsCount = node.Statements
                     .OfType<LocalDeclarationStatementSyntax>()
                     .SelectMany(decl => decl.Declaration.Variables)
                     .Count();
-                var localFunctions = node.ChildNodes()
+                var localFunctions = node.Statements
                     .OfType<LocalFunctionStatementSyntax>()
                     .ToList();
                 localVarsCount += localFunctions.Count;
