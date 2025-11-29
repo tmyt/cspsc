@@ -491,7 +491,7 @@ namespace CsPsc
                         Emit(node.Token.ValueText);
                         break;
                     case SyntaxKind.StringLiteralExpression:
-                        Emit($"({node.Token.ValueText})");
+                        Emit($"({EscapePostScriptString(node.Token.ValueText)})");
                         break;
                     case SyntaxKind.CharacterLiteralExpression:
                         Emit($"{(int)node.Token.ValueText[0]}");
@@ -765,7 +765,7 @@ namespace CsPsc
                 {
                     if (content is InterpolatedStringTextSyntax textContent)
                     {
-                        Emit($"({textContent.TextToken.ValueText})");
+                        Emit($"({EscapePostScriptString(textContent.TextToken.ValueText)})");
                     }
                     else if (content is InterpolationSyntax interpolation)
                     {
@@ -926,6 +926,17 @@ namespace CsPsc
                 var type = typeInfo.Type ?? throw new InvalidOperationException("Cannot determine the type of the expression.");
                 // 事前にDiagnosisをチェックしているのでError型になってここに到達することはないはず
                 return type.SpecialType != SpecialType.System_Void;
+            }
+
+            private string EscapePostScriptString(string str)
+            {
+                return str
+                    .Replace("\\", "\\\\")
+                    .Replace("(", "\\(")
+                    .Replace(")", "\\)")
+                    .Replace("\n", "\\n")
+                    .Replace("\r", "\\r")
+                    .Replace("\t", "\\t");
             }
         }
     }
