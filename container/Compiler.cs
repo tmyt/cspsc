@@ -677,9 +677,9 @@ namespace CsPsc
             public override void VisitArrayCreationExpression(ArrayCreationExpressionSyntax node)
             {
                 _handled = true;
-                if (node.Type.RankSpecifiers.Count > 1 || node.Type.RankSpecifiers.Any(s => s.Sizes.Count != 1))
+                if (node.Type.RankSpecifiers.Any(s => s.Sizes.Count != 1))
                 {
-                    throw new NotImplementedException("Only single-dimensional arrays are supported.");
+                    throw new NotImplementedException("Multi-dimensional arrays are not supported. Use jagged arrays instead.");
                 }
                 base.Visit(node.Type.RankSpecifiers[0]);
                 Emit("array");
