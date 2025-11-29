@@ -10,7 +10,13 @@ namespace CsPsc
     {
         public static string Run(string source)
         {
-            var tree = CSharpSyntaxTree.ParseText(source);
+            var sb = new StringBuilder();
+            sb.AppendLine("using System;");
+            sb.AppendLine("using System.Runtime.InteropServices;");
+            sb.AppendLine("using static System.Console;");
+            sb.AppendLine("using static CsPsc.Preamble.Intrinsics;");
+            sb.AppendLine(source);
+            var tree = CSharpSyntaxTree.ParseText(sb.ToString());
 
             var walker = new Walker(tree);
             walker.Visit();
@@ -21,6 +27,22 @@ namespace CsPsc
 
         class Walker : CSharpSyntaxWalker
         {
+            private const string Preamble = """
+            using System.Runtime.InteropServices;
+
+            namespace CsPsc.Preamble
+            {
+                public static class Intrinsics
+                {
+                    [DllImport("cspsc_intrinsics", EntryPoint = "println")]
+                    public static extern void println(string s);
+
+                    [DllImport("cspsc_intrinsics", EntryPoint = "print")]
+                    public static extern void print(string s);
+                }
+            }
+            """;
+
             private readonly SyntaxTree _tree;
 
             private readonly StringBuilder _script = new(string.Join("\n", new[]{
@@ -45,14 +67,26 @@ namespace CsPsc
             public Walker(SyntaxTree tree)
             {
                 _tree = tree;
-                var compilation = CSharpCompilation.Create(null)
+                var preambleTree = CSharpSyntaxTree.ParseText(Preamble);
+                var compilation = CSharpCompilation.Create("CsPscCompilation")
                     .AddReferences(ReferenceAssemblies.NetStandard20)
+                    .AddSyntaxTrees(preambleTree)
                     .AddSyntaxTrees(tree);
                 _semanticModel = compilation.GetSemanticModel(tree);
             }
 
             public void Visit()
             {
+                var diagnostics = _semanticModel.GetDiagnostics();
+                if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+                {
+                    var messages = diagnostics
+                        .Where(d => d.Severity == DiagnosticSeverity.Error)
+                        .Select(d => d.ToString());
+                    throw new InvalidOperationException(
+                        "Compilation failed:\n" + string.Join("\n", messages));
+                }
+
                 var functionStatements = _tree.GetRoot()
                     .ChildNodes()
                     .OfType<GlobalStatementSyntax>()
