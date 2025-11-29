@@ -195,7 +195,7 @@ namespace CsPsc
                     Emit("mark");
                     Emit("{ ");
                     base.Visit(node.Body);
-                    Emit("exit } loop");
+                    Emit(" } stopped pop");
                     Emit(hasReturnValue ? "count 1 roll cleartomark count -1 roll" : "cleartomark");
                     Emit("end } def");
                 }
@@ -659,19 +659,7 @@ namespace CsPsc
             {
                 _handled = true;
                 base.VisitReturnStatement(node);
-                var nestedLoops = 0;
-                SyntaxNode? currentNode = node;
-                while (currentNode?.Parent is not LocalFunctionStatementSyntax)
-                {
-                    if (currentNode == null) break;
-                    if (currentNode is ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax)
-                    {
-                        nestedLoops++;
-                    }
-
-                    currentNode = currentNode?.Parent;
-                }
-                Emit(string.Join(" ", Enumerable.Range(0, nestedLoops + 1).Select(_ => "exit")));
+                Emit("stop");
             }
 
             public override void VisitUsingDirective(UsingDirectiveSyntax node)
