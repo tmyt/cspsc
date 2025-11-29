@@ -27,6 +27,15 @@ namespace CsPsc
 
         class Walker : CSharpSyntaxWalker
         {
+            private enum BreakReason
+            {
+                Loop,
+                Switch,
+            }
+
+            private const int StopByReturn = 1;
+            private const int StopByBreak = 2;
+
             private const string Preamble = """
             using System.Runtime.InteropServices;
 
@@ -44,16 +53,20 @@ namespace CsPsc
             """;
 
             private readonly SyntaxTree _tree;
+            private readonly Stack<BreakReason> _breakReasons = new();
 
             private readonly StringBuilder _script = new(string.Join("\n", new[]{
                 "currentpagedevice /PageSize get aload pop",
                 "/__pageheight exch def /__pagewidth exch def",
                 "/Courier findfont 9 scalefont setfont",
                 "/__font_size 9 def",
+                "/__break_flag false def",
                 "/__global_y __pageheight 24 sub def",
                 "/__newline { /__global_y __global_y __font_size sub store 24 __global_y moveto } def",
                 "/__println { show __newline } def",
                 "/__concat { 2 dict begin /s2 exch def /s1 exch def s1 length s2 length add string dup 0 s1 putinterval dup s1 length s2 putinterval end } def",
+                "/__break { /__break_flag true store exit } def",
+                "/__loop { loop __break_flag { /__break_flag false store exit } if } def",
                 "24 __global_y moveto",
                 ""
             }));
@@ -191,11 +204,12 @@ namespace CsPsc
 
                     var returnType = _semanticModel.GetTypeInfo(node.ReturnType).Type
                         ?? throw new InvalidOperationException("Cannot determine the return type of the function.");
-                    var hasReturnValue = returnType.SpecialType == SpecialType.System_Void;
+                    var hasReturnValue = returnType.SpecialType != SpecialType.System_Void;
                     Emit("mark");
                     Emit("{ ");
                     base.Visit(node.Body);
-                    Emit(" } stopped pop");
+                    // ここは ..., rv, stop_code, stopped? になってる。先頭はifで消化されるので、stop_codeはstopped?の時に消化する
+                    Emit(" } stopped { pop } if");
                     Emit(hasReturnValue ? "count 1 roll cleartomark count -1 roll" : "cleartomark");
                     Emit("end } def");
                 }
@@ -437,6 +451,7 @@ namespace CsPsc
             public override void VisitForStatement(ForStatementSyntax node)
             {
                 _handled = true;
+                _breakReasons.Push(BreakReason.Loop);
                 if (node.Declaration?.Variables.Count > 0)
                 {
                     Emit($"{node.Declaration?.Variables.Count} dict begin");
@@ -445,7 +460,9 @@ namespace CsPsc
                 Emit("{");
                 base.Visit(node.Condition);
                 Emit("not { exit } if\n");
+                Emit("{");
                 base.Visit(node.Statement);
+                Emit("exit } __loop");
                 foreach (var incrementor in node.Incrementors)
                 {
                     base.Visit(incrementor);
@@ -459,26 +476,49 @@ namespace CsPsc
                 {
                     Emit("end");
                 }
+                _breakReasons.Pop();
+            }
+
+            public override void VisitForEachStatement(ForEachStatementSyntax node)
+            {
+                _handled = true;
+                _breakReasons.Push(BreakReason.Loop);
+                base.Visit(node.Expression);
+                Emit("{");
+                Emit($"1 dict begin /{node.Identifier.ValueText} exch def");
+                Emit("{");
+                base.Visit(node.Statement);
+                Emit("exit } __loop");
+                Emit("end } forall");
+                _breakReasons.Pop();
             }
 
             public override void VisitWhileStatement(WhileStatementSyntax node)
             {
                 _handled = true;
+                _breakReasons.Push(BreakReason.Loop);
                 Emit("{");
                 base.Visit(node.Condition);
                 Emit("not { exit } if\n");
+                Emit("{");
                 base.Visit(node.Statement);
+                Emit("exit } __loop");
                 Emit("} loop");
+                _breakReasons.Pop();
             }
 
             public override void VisitDoStatement(DoStatementSyntax node)
             {
                 _handled = true;
+                _breakReasons.Push(BreakReason.Loop);
+                Emit("{");
                 Emit("{");
                 base.Visit(node.Statement);
+                Emit("exit } __loop");
                 base.Visit(node.Condition);
                 Emit("not { exit } if\n");
                 Emit("} loop");
+                _breakReasons.Pop();
             }
 
             public override void VisitLiteralExpression(LiteralExpressionSyntax node)
@@ -528,12 +568,13 @@ namespace CsPsc
             public override void VisitSwitchStatement(SwitchStatementSyntax node)
             {
                 _handled = true;
+                _breakReasons.Push(BreakReason.Switch);
+                Emit("mark {");
                 base.Visit(node.Expression);
-                var defaultSection = node.Sections.FirstOrDefault(s => s.Labels.Any(l => l.IsKind(SyntaxKind.DefaultSwitchLabel)));
-                var literalSections = node.Sections.Count(s => s.Labels.Any(l => !l.IsKind(SyntaxKind.DefaultSwitchLabel)));
-                for (var i = 0; i < node.Sections.Count; ++i)
+                var literalSections = node.Sections.Where(s => s.Labels.Any(l => !l.IsKind(SyntaxKind.DefaultSwitchLabel))).ToList();
+                for (var i = 0; i < literalSections.Count; ++i)
                 {
-                    var labels = node.Sections[i].Labels.Where(l => !l.IsKind(SyntaxKind.DefaultSwitchLabel)).ToList();
+                    var labels = literalSections[i].Labels.Where(l => !l.IsKind(SyntaxKind.DefaultSwitchLabel)).ToList();
                     if (labels.Count == 0) continue;
                     Emit("dup");
                     base.Visit(labels[0]);
@@ -544,38 +585,39 @@ namespace CsPsc
                         base.Visit(labels[i2]);
                         Emit("eq or");
                     }
-                    Emit("{");
-                    foreach (var statement in node.Sections[i].Statements)
+                    Emit("{ pop");
+                    foreach (var statement in literalSections[i].Statements)
                     {
                         base.Visit(statement);
                     }
                     Emit("} ");
-                    if (defaultSection != null || i < node.Sections.Count - 1)
+                    if (i < literalSections.Count - 1)
                     {
                         Emit("{");
                     }
                 }
+                if (literalSections.Count == 0)
+                {
+                    Emit("false { } ");
+                }
+                Emit("{ pop");
+                var defaultSection = node.Sections.FirstOrDefault(s => s.Labels.Any(l => l.IsKind(SyntaxKind.DefaultSwitchLabel)));
                 if (defaultSection != null)
                 {
-                    if (literalSections == 0)
-                    {
-                        Emit("false { } ");
-                    }
                     foreach (var statement in defaultSection.Statements)
                     {
                         base.Visit(statement);
                     }
-                    Emit("} ifelse");
                 }
-                else if (node.Sections.Any())
-                {
-                    Emit("if");
-                }
-                for (var i = 1; i < literalSections; ++i)
+                Emit("} ifelse");
+                for (var i = 1; i < literalSections.Count; ++i)
                 {
                     Emit("} ifelse");
                 }
-                Emit("pop");
+                Emit("} stopped { ");
+                Emit($"dup {StopByBreak} eq {{ cleartomark }} {{ count 2 roll cleartomark count -2 roll stop }} ifelse");
+                Emit("} { cleartomark } ifelse");
+                _breakReasons.Pop();
             }
 
             public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -652,14 +694,31 @@ namespace CsPsc
 
             public override void VisitContinueStatement(ContinueStatementSyntax node)
             {
-                throw new NotImplementedException("Continue statement is not supported yet.");
+                _handled = true;
+                Emit("exit");
+            }
+
+            public override void VisitBreakStatement(BreakStatementSyntax node)
+            {
+                _handled = true;
+                switch(_breakReasons.Peek())
+                {
+                    case BreakReason.Loop:
+                        Emit("__break");
+                        break;
+                    case BreakReason.Switch:
+                        Emit($"{StopByBreak} stop");
+                        break;
+                    default:
+                        throw new InvalidOperationException("Invalid break context.");
+                }
             }
 
             public override void VisitReturnStatement(ReturnStatementSyntax node)
             {
                 _handled = true;
                 base.VisitReturnStatement(node);
-                Emit("stop");
+                Emit($"{StopByReturn} stop");
             }
 
             public override void VisitUsingDirective(UsingDirectiveSyntax node)
@@ -688,28 +747,6 @@ namespace CsPsc
             {
                 _handled = true;
                 base.VisitParenthesizedExpression(node);
-            }
-
-            public override void VisitForEachStatement(ForEachStatementSyntax node)
-            {
-                _handled = true;
-                base.Visit(node.Expression);
-                Emit("{");
-                Emit($"1 dict begin /{node.Identifier.ValueText} exch def");
-                var localVarsCount = node.Statement.ChildNodes()
-                    .OfType<LocalDeclarationStatementSyntax>()
-                    .SelectMany(decl => decl.Declaration.Variables)
-                    .Count();
-                if (localVarsCount > 0)
-                {
-                    Emit($"{localVarsCount} dict begin");
-                }
-                base.Visit(node.Statement);
-                if (localVarsCount > 0)
-                {
-                    Emit("end");
-                }
-                Emit("end } forall");
             }
 
             public override void VisitPredefinedType(PredefinedTypeSyntax node)
