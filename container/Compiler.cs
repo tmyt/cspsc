@@ -35,7 +35,9 @@ namespace CsPsc
                 "24 __global_y moveto",
                 ""
             }));
-            private readonly Dictionary<string, string> _imports = new() { { "println", "__println" }, { "print", "show" } };
+            private readonly Dictionary<string, string> _intrinsics = new() {
+                { "println", "__println" }, { "print", "show" }, { "WriteLine", "__println" }, { "Write", "show" }
+            };
 
             private bool _handled;
             private readonly SemanticModel _semanticModel;
@@ -51,7 +53,21 @@ namespace CsPsc
 
             public void Visit()
             {
-                Visit(_tree.GetRoot());
+                var functionStatements = _tree.GetRoot()
+                    .ChildNodes()
+                    .OfType<GlobalStatementSyntax>()
+                    .Where(gs => gs.Statement is LocalFunctionStatementSyntax);
+
+                // Step1: hoisting global functions
+                foreach (var func in functionStatements)
+                {
+                    Visit(func);
+                }
+                // Step2: visit all other nodes
+                foreach (var node in _tree.GetRoot().ChildNodes().Except(functionStatements))
+                {
+                    Visit(node);
+                }
             }
 
             public override void Visit(SyntaxNode? node)
@@ -124,7 +140,7 @@ namespace CsPsc
 
                 if (isImported && node.Modifiers.Any(m => m.IsKind(SyntaxKind.ExternKeyword)))
                 {
-                    _imports[node.Identifier.ValueText] = node.Identifier.ValueText.ToLower();
+                    _intrinsics[node.Identifier.ValueText] = node.Identifier.ValueText.ToLower();
                 }
                 else if (isImported || node.Modifiers.Any(m => m.IsKind(SyntaxKind.ExternKeyword)))
                 {
@@ -132,7 +148,6 @@ namespace CsPsc
                 }
                 else if (node.Body != null)
                 {
-                    _imports[node.Identifier.ValueText] = node.Identifier.ValueText;
                     var paramCount = node.ParameterList.Parameters.Count;
                     Emit($"/{node.Identifier.ValueText} {{ {paramCount} dict begin");
                     foreach (var param in node.ParameterList.Parameters.Reverse())
@@ -164,11 +179,24 @@ namespace CsPsc
                     .OfType<LocalDeclarationStatementSyntax>()
                     .SelectMany(decl => decl.Declaration.Variables)
                     .Count();
+                var localFunctions = node.ChildNodes()
+                    .OfType<LocalFunctionStatementSyntax>()
+                    .ToList();
+                localVarsCount += localFunctions.Count;
                 if (localVarsCount > 0)
                 {
                     Emit($"{localVarsCount} dict begin");
                 }
-                base.VisitBlock(node);
+                // step1: hoisting local functions
+                foreach (var func in localFunctions)
+                {
+                    Visit(func);
+                }
+                // step2: visit all other statements
+                foreach (var statement in node.Statements.Except(localFunctions))
+                {
+                    Visit(statement);
+                }
                 if (localVarsCount > 0)
                 {
                     Emit("end");
@@ -537,22 +565,12 @@ namespace CsPsc
                 {
                     throw new NotImplementedException("Only simple identifier function calls are supported.");
                 }
-                if (_imports.TryGetValue(identifier.Identifier.ValueText, out var psName))
+                foreach (var arg in node.ArgumentList.Arguments)
                 {
-                    foreach (var arg in node.ArgumentList.Arguments)
-                    {
-                        base.Visit(arg.Expression);
-                    }
-                    Emit(psName);
-                    return;
+                    base.Visit(arg.Expression);
                 }
-                if (identifier.Identifier.ValueText == "WriteLine")
-                {
-                    base.Visit(node.ArgumentList.Arguments[0]);
-                    Emit("__println");
-                    return;
-                }
-                throw new NotImplementedException($"No imported function found: {identifier.Identifier.ValueText}");
+                _intrinsics.TryGetValue(identifier.Identifier.ValueText, out var importName);
+                Emit(importName ?? identifier.Identifier.ValueText);
             }
 
             public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
