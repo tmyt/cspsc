@@ -315,10 +315,7 @@ namespace CsPsc
                     if (!node.IsKind(SyntaxKind.SimpleAssignmentExpression))
                     {
                         VisitElementIndexerSyntax(elementAccess);
-                        if (!node.IsKind(SyntaxKind.SimpleAssignmentExpression))
-                        {
-                            Emit("get");
-                        }
+                        Emit("get");
 
                         if (node.IsKind(SyntaxKind.ModuloAssignmentExpression) && IsReal(elementAccess))
                         {
@@ -786,7 +783,7 @@ namespace CsPsc
             private void VisitPSFontAttribute(AttributeSyntax node)
             {
                 var args = node.ArgumentList?.Arguments;
-                if (args == null || args?.Count != 2) return;
+                if (args?.Count != 2) return;
                 var fontName = args?[0]?.ToString().Trim('"');
                 var fontSize = args?[1]?.ToString();
                 Emit($"/{fontName} findfont {fontSize} scalefont setfont");
