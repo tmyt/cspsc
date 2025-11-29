@@ -926,8 +926,9 @@ namespace CsPsc
             private bool HasExpressionValue(SyntaxNode node)
             {
                 var typeInfo = _semanticModel.GetTypeInfo(node);
-                var type = typeInfo.Type;
-                return type != null && type.TypeKind != TypeKind.Error && type.SpecialType != SpecialType.System_Void;
+                var type = typeInfo.Type ?? throw new InvalidOperationException("Cannot determine the type of the expression.");
+                // 事前にDiagnosisをチェックしているのでError型になってここに到達することはないはず
+                return type.SpecialType != SpecialType.System_Void;
             }
         }
     }
