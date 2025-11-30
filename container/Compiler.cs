@@ -503,7 +503,19 @@ namespace CsPsc
                     else
                     {
                         Emit($"/{variable.Identifier.ValueText}");
-                        base.Visit(variable.Initializer.Value);
+                        if (variable.Initializer.Value is InitializerExpressionSyntax initializer)
+                        {
+                            Emit("[");
+                            foreach (var exp in initializer.Expressions)
+                            {
+                                base.Visit(exp);
+                            }
+                            Emit("]");
+                        }
+                        else
+                        {
+                            base.Visit(variable.Initializer.Value);
+                        }
                         Emit("def");
                     }
                 }
@@ -752,8 +764,33 @@ namespace CsPsc
                 {
                     throw new NotImplementedException("Multi-dimensional arrays are not supported. Use jagged arrays instead.");
                 }
-                base.Visit(node.Type.RankSpecifiers[0]);
-                Emit("array");
+                if (node.Type.RankSpecifiers[0].Sizes[0] is OmittedArraySizeExpressionSyntax)
+                {
+                    var initializer = node.Initializer
+                        ?? throw new InvalidOperationException("Array initializer is required when array size is omitted.");
+                    Emit("[");
+                    foreach (var expr in initializer.Expressions)
+                    {
+                        base.Visit(expr);
+                    }
+                    Emit("]");
+                }
+                else
+                {
+                    base.Visit(node.Type.RankSpecifiers[0]);
+                    Emit("array");
+                }
+            }
+
+            public override void VisitImplicitArrayCreationExpression(ImplicitArrayCreationExpressionSyntax node)
+            {
+                _handled = true;
+                Emit("[");
+                foreach (var expr in node.Initializer.Expressions)
+                {
+                    base.Visit(expr);
+                }
+                Emit("]");
             }
 
             public override void VisitElementAccessExpression(ElementAccessExpressionSyntax node)
