@@ -318,7 +318,9 @@ namespace CsPsc
                             {
                                 continue;
                             }
-                            Emit($"dup {i} get /{pvd.Variables[i]} exch def");
+                            var svd = pvd.Variables[i] as SingleVariableDesignationSyntax
+                                ?? throw new NotImplementedException("Unsupported deconstruction assignment target.");
+                            Emit($"dup {i} get /{svd.Identifier.ValueText} exch def");
                         }
                     }
                     else if (node.Left is TupleExpressionSyntax tuple)
@@ -328,15 +330,25 @@ namespace CsPsc
                         {
                             var arg = tuple.Arguments[i];
                             var tupleOp = "store";
-                            var tupleIdentifier = arg.Expression.ToString();
+                            string tupleIdentifier;
                             if (arg.Expression is DeclarationExpressionSyntax decl)
                             {
                                 if (decl.Designation is DiscardDesignationSyntax)
                                 {
                                     continue;
                                 }
+                                var svd = decl.Designation as SingleVariableDesignationSyntax
+                                    ?? throw new NotImplementedException("Unsupported deconstruction assignment target.");
                                 tupleOp = "def";
-                                tupleIdentifier = decl.Designation.ToString();
+                                tupleIdentifier = svd.Identifier.ValueText;
+                            }
+                            else if (arg.Expression is IdentifierNameSyntax identifier)
+                            {
+                                tupleIdentifier = identifier.Identifier.ValueText;
+                            }
+                            else
+                            {
+                                throw new NotImplementedException("Unsupported deconstruction assignment target.");
                             }
                             Emit($"dup {i} get /{tupleIdentifier} exch {tupleOp}");
                         }
@@ -384,10 +396,11 @@ namespace CsPsc
                 }
                 else
                 {
-                    Emit($"/{node.Left}");
+                    var identifier = GetIdentifierText(node.Left);
+                    Emit($"/{identifier}");
                     if (!node.IsKind(SyntaxKind.SimpleAssignmentExpression))
                     {
-                        Emit(node.Left.ToString());
+                        Emit($"{identifier}");
                         if (node.IsKind(SyntaxKind.ModuloAssignmentExpression) && IsReal(node.Left))
                         {
                             Emit("cvi");
@@ -434,9 +447,10 @@ namespace CsPsc
                         }
                         else
                         {
-                            Emit($"/{node.Operand} {node.Operand}");
+                            var identifier = GetIdentifierText(node.Operand);
+                            Emit($"/{identifier} {identifier}");
                             Emit($"1 {op} store");
-                            Emit(node.Operand.ToString());
+                            Emit(identifier);
                         }
                         return;
                     case SyntaxKind.BitwiseNotExpression:
@@ -467,8 +481,9 @@ namespace CsPsc
                         }
                         else
                         {
-                            Emit($"{node.Operand} /{node.Operand}");
-                            Emit($"{node.Operand} 1 {op} store");
+                            var identifier = GetIdentifierText(node.Operand);
+                            Emit($"{identifier} /{identifier}");
+                            Emit($"{identifier} 1 {op} store");
                         }
                         return;
                     default:
@@ -1028,6 +1043,15 @@ namespace CsPsc
                     .Replace("\n", "\\n")
                     .Replace("\r", "\\r")
                     .Replace("\t", "\\t");
+            }
+
+            private string GetIdentifierText(SyntaxNode node)
+            {
+                if (node is IdentifierNameSyntax identifier)
+                {
+                    return identifier.Identifier.ValueText;
+                }
+                throw new NotImplementedException("Only simple identifier targets are supported.");
             }
         }
     }
