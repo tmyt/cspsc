@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 using Basic.Reference.Assemblies;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace CsPsc
 {
@@ -303,6 +304,51 @@ namespace CsPsc
             public override void VisitAssignmentExpression(AssignmentExpressionSyntax node)
             {
                 _handled = true;
+                // 分割代入だけは特殊なので専用の処理
+                if (_semanticModel.GetOperation(node) is IDeconstructionAssignmentOperation)
+                {
+                    // Evaluate right-hand side
+                    base.Visit(node.Right);
+                    if (node.Left is DeclarationExpressionSyntax declaration && declaration.Designation is ParenthesizedVariableDesignationSyntax pvd)
+                    {
+                        // Store to each variable
+                        for (var i = 0; i < pvd.Variables.Count; ++i)
+                        {
+                            if (pvd.Variables[i] is DiscardDesignationSyntax)
+                            {
+                                continue;
+                            }
+                            Emit($"dup {i} get /{pvd.Variables[i]} exch def");
+                        }
+                    }
+                    else if (node.Left is TupleExpressionSyntax tuple)
+                    {
+                        // Store to each variable
+                        for (var i = 0; i < tuple.Arguments.Count; ++i)
+                        {
+                            var arg = tuple.Arguments[i];
+                            var tupleOp = "store";
+                            var tupleIdentifier = arg.Expression.ToString();
+                            if (arg.Expression is DeclarationExpressionSyntax decl)
+                            {
+                                if (decl.Designation is DiscardDesignationSyntax)
+                                {
+                                    continue;
+                                }
+                                tupleOp = "def";
+                                tupleIdentifier = decl.Designation.ToString();
+                            }
+                            Emit($"dup {i} get /{tupleIdentifier} exch {tupleOp}");
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException("Unsupported deconstruction assignment target.");
+                    }
+                    return;
+                }
+
+                // 通常の代入/通常の複合代入など
                 string op;
                 var store = node.Left is ElementAccessExpressionSyntax ? "put" : "store";
                 if (node.IsKind(SyntaxKind.DivideAssignmentExpression))
@@ -649,6 +695,16 @@ namespace CsPsc
             {
                 _handled = true;
                 base.Visit(node.Expression);
+
+                var symbol = _semanticModel.GetSymbolInfo(node).Symbol;
+                if (symbol is IFieldSymbol { ContainingType.IsTupleType: true } field)
+                {
+                    var tupleType = field.ContainingType;
+                    var tupleElement = tupleType.TupleElements.Select(t => t.Name).ToList().IndexOf(field.Name);
+                    Emit($"{tupleElement} get");
+                    return;
+                }
+
                 if (node.Name.Identifier.ValueText == "Length")
                 {
                     Emit("length");
@@ -701,7 +757,7 @@ namespace CsPsc
             public override void VisitBreakStatement(BreakStatementSyntax node)
             {
                 _handled = true;
-                switch(_breakReasons.Peek())
+                switch (_breakReasons.Peek())
                 {
                     case BreakReason.Loop:
                         Emit("__break");
@@ -725,6 +781,17 @@ namespace CsPsc
             {
                 _handled = true;
                 // Do nothing for using directives
+            }
+
+            public override void VisitTupleExpression(TupleExpressionSyntax node)
+            {
+                _handled = true;
+                Emit("[");
+                foreach (var element in node.Arguments)
+                {
+                    base.Visit(element.Expression);
+                }
+                Emit("]");
             }
 
             public override void VisitExpressionStatement(ExpressionStatementSyntax node)
