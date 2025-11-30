@@ -194,7 +194,7 @@ namespace CsPsc
                 {
                     throw new NotImplementedException("Only extern functions with DllImport are supported.");
                 }
-                else if (node.Body != null)
+                else if (node.Body != null || node.ExpressionBody != null)
                 {
                     var paramCount = node.ParameterList.Parameters.Count;
                     Emit($"/{node.Identifier.ValueText} {{ {paramCount} dict begin");
@@ -208,7 +208,7 @@ namespace CsPsc
                     var hasReturnValue = returnType.SpecialType != SpecialType.System_Void;
                     Emit("mark");
                     Emit("{ ");
-                    base.Visit(node.Body);
+                    base.Visit((SyntaxNode?)node.Body ?? node.ExpressionBody!.Expression);
                     // ここは ..., rv, stop_code, stopped? になってる。先頭はifで消化されるので、stop_codeはstopped?の時に消化する
                     Emit(" } stopped { pop } if");
                     Emit(hasReturnValue ? "count 1 roll cleartomark count -1 roll" : "cleartomark");
