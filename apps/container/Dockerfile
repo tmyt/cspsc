@@ -5,7 +5,7 @@ RUN apt update && apt install -y gcc && apt clean
 RUN dotnet publish -c Release -o /app/build
 
 FROM alpine:latest AS runtime
-RUN apk add --no-cache libc6-compat && ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2
+RUN apk add --no-cache libc6-compat && ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2 || true
 WORKDIR /app
 COPY --from=build /app/build/ .
 EXPOSE 8081
