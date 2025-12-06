@@ -197,10 +197,19 @@ namespace CsPsc
                 else if (node.Body != null || node.ExpressionBody != null)
                 {
                     var paramCount = node.ParameterList.Parameters.Count;
+                    paramCount += node.ParameterList.Parameters
+                        .Count(p => p.Modifiers.Any(m => m.IsRefLikeParameter));
                     Emit($"/{node.Identifier.ValueText} {{ {paramCount} dict begin");
+                    // Unboxing ref/out parameters
                     foreach (var param in node.ParameterList.Parameters.Reverse())
                     {
-                        Emit($"/{param.Identifier.ValueText} exch def");
+                        var isRef = param.Modifiers.Any(m => m.IsRefLikeParameter);
+                        var refSuffix = isRef ? "_ref" : "";
+                        Emit($"/{param.Identifier.ValueText}{refSuffix} exch def");
+                        if (isRef)
+                        {
+                            Emit($"/{param.Identifier.ValueText} {param.Identifier.ValueText}_ref /value get def");
+                        }
                     }
 
                     var returnType = _semanticModel.GetTypeInfo(node.ReturnType).Type
@@ -212,6 +221,13 @@ namespace CsPsc
                     // ここは ..., rv, stop_code, stopped? になってる。先頭はifで消化されるので、stop_codeはstopped?の時に消化する
                     Emit(" } stopped { pop } if");
                     Emit(hasReturnValue ? "count 1 roll cleartomark count -1 roll" : "cleartomark");
+                    // Re-boxing ref/out parameters
+                    foreach (var param in node.ParameterList.Parameters)
+                    {
+                        if (!param.Modifiers.Any(m => m.IsRefLikeParameter)) { continue; }
+                        var paramIdentifier = param.Identifier.ValueText;
+                        Emit($"{paramIdentifier}_ref /value {paramIdentifier} put");
+                    }
                     Emit("end } def");
                 }
                 else
@@ -698,12 +714,36 @@ namespace CsPsc
                 {
                     throw new NotImplementedException("Only simple identifier function calls are supported.");
                 }
+                // Boxing ref/out arguments
                 foreach (var arg in node.ArgumentList.Arguments)
                 {
-                    base.Visit(arg.Expression);
+                    if (arg.Expression is DeclarationExpressionSyntax decl)
+                    {
+                        Emit($"/{decl.Designation} 0 def");
+                        Emit($"/{decl.Designation}_ref << /value {decl.Designation} >> def");
+                        Emit($"{decl.Designation}_ref");
+                    }
+                    else if (!arg.RefKindKeyword.IsKind(SyntaxKind.None))
+                    {
+                        Emit($"/{arg.Expression}_ref << /value {arg.Expression} >> def");
+                        Emit($"{arg.Expression}_ref");
+                    }
+                    else
+                    {
+                        base.Visit(arg.Expression);
+                    }
                 }
                 _intrinsics.TryGetValue(identifier.Identifier.ValueText, out var importName);
                 Emit(importName ?? identifier.Identifier.ValueText);
+                // Unboxing ref/out arguments
+                foreach (var arg in node.ArgumentList.Arguments)
+                {
+                    if (arg.RefKindKeyword.IsKind(SyntaxKind.None)) { continue; }
+                    var argIdentifier = arg.Expression is DeclarationExpressionSyntax decl
+                        ? (SyntaxNode)decl.Designation
+                        : arg.Expression;
+                    Emit($"/{argIdentifier} {argIdentifier}_ref /value get store");
+                }
             }
 
             public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
@@ -1053,6 +1093,15 @@ namespace CsPsc
                 }
                 throw new NotImplementedException("Only simple identifier targets are supported.");
             }
+        }
+    }
+
+    static class SyntaxTokenExtension
+    {
+        extension(SyntaxToken token)
+        {
+            public bool IsRefLikeParameter =>
+                token.IsKind(SyntaxKind.RefKeyword) || token.IsKind(SyntaxKind.OutKeyword) || token.IsKind(SyntaxKind.InKeyword);
         }
     }
 }
