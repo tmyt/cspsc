@@ -3,33 +3,40 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>cspsc playground</title>
+    <title>CsPsc Playground</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h1>cspsc playground</h1>
-    <textarea id="code" rows="25" cols="80">// Write your code here
-// Embedded Functions are supported
-//   void println(string s);
-//   void print(string s);
-//   void WriteLine(string s);
-//   void Write(string s);</textarea>
-    <br />
-    <button id="compileBtn">Compile</button>
-    <h2>Output</h2>
-    <pre id="output"></pre>
-    <script>
-      document.getElementById("compileBtn").onclick = async () => {
-        const output = document.getElementById("output");
-        output.textContent = "Compiling...";
-        const code = document.getElementById("code").value;
-        const response = await fetch("/compile", {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: code,
-        });
-        const result = await response.text();
-        output.textContent = result;
-      };
-    </script>
+    <div class="container">
+      <!-- Left Pane: Monaco Editor -->
+      <div class="left-pane">
+        <div class="editor-header">
+          <h2>CsPsc Playground</h2>
+          <button id="compileBtn" class="compile-btn">Compile</button>
+        </div>
+        <div id="editor"></div>
+      </div>
+
+      <!-- Resizer -->
+      <div class="resizer"></div>
+
+      <!-- Right Pane: Tabs -->
+      <div class="right-pane">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="result">Compile Result</button>
+          <button class="tab-btn" data-tab="pdf">PDF Output</button>
+        </div>
+        <div class="tab-content">
+          <div id="result-tab" class="tab-panel active">
+            <pre id="output">Ready to compile...</pre>
+          </div>
+          <div id="pdf-tab" class="tab-panel">
+            <embed id="pdf-viewer" type="application/pdf" width="100%" height="100%" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="main.ts"></script>
   </body>
 </html>

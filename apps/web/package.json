@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "vite build",
+    "dev": "vite",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -11,9 +12,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "monaco-editor": "^0.55.1"
+    "monaco-editor": "^0.55.1",
+    "@okathira/ghostpdl-wasm": "^1.1.0"
   },
   "devDependencies": {
+    "typescript": "^5.7.2",
     "vite": "^7.2.4"
   }
 }

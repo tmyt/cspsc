@@ -1,3 +1,181 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: #1e1e1e;
+}
+
+/* Left Pane - Monaco Editor */
+.left-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  background-color: #1e1e1e;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  background-color: #252526;
+  border-bottom: 1px solid #3e3e42;
+}
+
+.editor-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.compile-btn {
+  padding: 8px 24px;
+  background-color: #007acc;
+  color: #ffffff;
+  border: none;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.compile-btn:hover {
+  background-color: #1c8dd9;
+}
+
+.compile-btn:active {
+  background-color: #0062a3;
+}
+
 #editor {
-    height: 100vh;  
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Resizer */
+.resizer {
+  width: 4px;
+  background-color: #3e3e42;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background-color 0.2s;
+}
+
+.resizer:hover {
+  background-color: #007acc;
+}
+
+.resizer.resizing {
+  background-color: #007acc;
+}
+
+/* Right Pane - Tabs and Content */
+.right-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+  min-width: 200px;
+}
+
+.tabs {
+  display: flex;
+  background-color: #252526;
+  border-bottom: 1px solid #3e3e42;
+  height: 48px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0 16px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #969696;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-btn:hover {
+  background-color: #2d2d30;
+  color: #cccccc;
+}
+
+.tab-btn.active {
+  color: #ffffff;
+  border-bottom-color: #007acc;
+  background-color: #1e1e1e;
+}
+
+.tab-content {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  background-color: #1e1e1e;
+}
+
+.tab-panel {
+  display: none;
+  height: 100%;
+  padding: 16px;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* Compile Result Tab */
+#output {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: #252526;
+  padding: 12px;
+  border-radius: 3px;
+  min-height: 100%;
+  border: 1px solid #3e3e42;
+}
+
+.tab-panel.active#pdf-tab {
+  display: flex;
+}
+
+/* PDF Tab */
+#pdf-tab {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #2d2d30;
+  padding: 0;
+}
+
+#pdf-viewer {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background-color: #2d2d30;
 }
