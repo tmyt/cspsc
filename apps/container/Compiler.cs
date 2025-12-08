@@ -717,6 +717,11 @@ namespace CsPsc
                 // Boxing ref/out arguments
                 foreach (var arg in node.ArgumentList.Arguments)
                 {
+                    if (_semanticModel.GetOperation(arg.Expression) is IDiscardOperation)
+                    {
+                        Emit("<< /value 0 >>");
+                        continue;
+                    }
                     if (arg.Expression is DeclarationExpressionSyntax decl)
                     {
                         Emit($"/{decl.Designation} 0 def");
@@ -739,6 +744,10 @@ namespace CsPsc
                 foreach (var arg in node.ArgumentList.Arguments)
                 {
                     if (arg.RefKindKeyword.IsKind(SyntaxKind.None)) { continue; }
+                    if (_semanticModel.GetOperation(arg.Expression) is IDiscardOperation)
+                    {
+                        continue;
+                    }
                     var argIdentifier = arg.Expression is DeclarationExpressionSyntax decl
                         ? (SyntaxNode)decl.Designation
                         : arg.Expression;
