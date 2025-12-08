@@ -7,13 +7,21 @@
   </head>
   <body>
     <h1>cspsc playground</h1>
-    <textarea id="code" rows="10" cols="50">// Write your code here</textarea>
+    <textarea id="code" rows="25" cols="80">// Write your code here
+// Embedded Functions are supported
+//   void println(string s);
+//   void print(string s);
+//   void WriteLine(string s);
+//   void Write(string s);
+    </textarea>
     <br />
     <button id="compileBtn">Compile</button>
     <h2>Output</h2>
     <pre id="output"></pre>
     <script>
       document.getElementById("compileBtn").onclick = async () => {
+        const output = document.getElementById("output");
+        output.textContent = "Compiling...";
         const code = document.getElementById("code").value;
         const response = await fetch("/compile", {
           method: "POST",
@@ -21,7 +29,7 @@
           body: code,
         });
         const result = await response.text();
-        document.getElementById("output").textContent = result;
+        output.textContent = result;
       };
     </script>
   </body>
