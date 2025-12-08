@@ -14,6 +14,7 @@ namespace CsPsc
             var sb = new StringBuilder();
             sb.AppendLine("using System;");
             sb.AppendLine("using System.Runtime.InteropServices;");
+            sb.AppendLine("using CsPsc.Preamble;");
             sb.AppendLine("using static System.Console;");
             sb.AppendLine("using static CsPsc.Preamble.Intrinsics;");
             sb.AppendLine(source);
@@ -49,6 +50,19 @@ namespace CsPsc
 
                     [DllImport("cspsc_intrinsics", EntryPoint = "print")]
                     public static extern void print(string s);
+                }
+
+                [System.AttributeUsage(System.AttributeTargets.Assembly)]
+                public class PSFontAttribute : System.Attribute
+                {
+                    public string FontFace { get; }
+                    public int FontSize { get; }
+
+                    public PSFontAttribute(string fontFace, int fontSize)
+                    {
+                        FontFace = fontFace;
+                        FontSize = fontSize;
+                    }
                 }
             }
             """;
