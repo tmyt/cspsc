@@ -1,4 +1,6 @@
 bin
 obj
+tmp
 node_modules
-
+*.local.json
+dist

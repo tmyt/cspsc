@@ -3,11 +3,17 @@
   "name": "cspsc",
   "main": "src/index.ts",
   "compatibility_date": "2025-11-17",
+  "routes": [
+    {
+      "pattern": "cspsc.utatane.dev",
+      "custom_domain": true
+    }
+  ],
   "containers": [
     {
       "max_instances": 2,
       "class_name": "CompilerService",
-      "image": "./container/Dockerfile"
+      "image": "../container/Dockerfile"
     }
   ],
   "durable_objects": {
@@ -28,7 +34,10 @@
     "enabled": true
   },
   "assets": {
-    "directory": "./assets",
+    "directory": "../web/dist",
     "binding": "ASSETS"
+  },
+  "build": {
+    "command": "pnpm --filter web run build"
   }
 }
