@@ -781,6 +781,12 @@ namespace CsPsc
                 }
             }
 
+            public override void VisitEmptyStatement(EmptyStatementSyntax node)
+            {
+                _handled = true;
+                // Do nothing for empty statements
+            }
+
             public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
             {
                 _handled = true;
