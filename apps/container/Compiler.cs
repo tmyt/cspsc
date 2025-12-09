@@ -990,6 +990,7 @@ namespace CsPsc
                 switch (predefinedType.Keyword.Kind())
                 {
                     case SyntaxKind.IntKeyword:
+                    case SyntaxKind.ByteKeyword:
                         Emit("cvi");
                         break;
                     case SyntaxKind.DoubleKeyword:
