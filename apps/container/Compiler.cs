@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 using Basic.Reference.Assemblies;
 using Microsoft.CodeAnalysis.Operations;
+using System.Text.RegularExpressions;
 
 namespace CsPsc
 {
@@ -50,6 +51,12 @@ namespace CsPsc
 
                     [DllImport("cspsc_intrinsics", EntryPoint = "print")]
                     public static extern void print(string s);
+
+                    [DllImport("cspsc_intrinsics", EntryPoint = "__asm")]
+                    public static extern void __asm(string s);
+
+                    [DllImport("cspsc_intrinsics", EntryPoint = "__sym")]
+                    public static extern PsSym __sym(string name);
                 }
 
                 [System.AttributeUsage(System.AttributeTargets.Assembly)]
@@ -64,6 +71,8 @@ namespace CsPsc
                         FontSize = fontSize;
                     }
                 }
+
+                public class PsSym { }
             }
             """;
 
@@ -740,6 +749,32 @@ namespace CsPsc
                 {
                     throw new NotImplementedException("Only simple identifier function calls are supported.");
                 }
+                // Handle intrinsic functions
+                if (identifier.Identifier.ValueText == "__sym")
+                {
+                    var arg1 = node.ArgumentList.Arguments[0];
+                    if (arg1.Expression is not LiteralExpressionSyntax literal)
+                    {
+                        throw new InvalidOperationException("__sym argument must be a string literal.");
+                    }
+                    var re = new Regex("\\s|\\/");
+                    if (re.Match(literal.Token.ValueText).Success)
+                    {
+                        throw new InvalidOperationException("__sym argument must not contain whitespace or '/'.");
+                    }
+                    Emit("/" + literal.Token.ValueText);
+                    return;
+                }
+                if (identifier.Identifier.ValueText == "__asm")
+                {
+                    var arg1 = node.ArgumentList.Arguments[0];
+                    if (arg1.Expression is not LiteralExpressionSyntax literal)
+                    {
+                        throw new InvalidOperationException("__asm argument must be a string literal.");
+                    }
+                    Emit(literal.Token.ValueText);
+                    return;
+                }
                 // Boxing ref/out arguments
                 foreach (var arg in node.ArgumentList.Arguments)
                 {
@@ -800,7 +835,7 @@ namespace CsPsc
                     Emit($"{tupleElement} get");
                     return;
                 }
-
+                
                 if (node.Name.Identifier.ValueText == "Length")
                 {
                     Emit("length");
