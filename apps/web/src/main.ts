@@ -25,10 +25,7 @@ const defaultCode = `// Write your C# code here
 // Change FontFace with:
 //   [assembly:PSFont("Courier", 12)]
 
-int Fib(int n){
-    if (n < 2) return n;
-    return Fib(n - 1) + Fib(n - 2);
-}
+int Fib(int n) => n < 2 ? n : Fib(n - 1) + Fib(n - 2);
 
 var ch = 'H';
 println($"{ch}ello {(char)(Fib(11) - 2)}orld!");
