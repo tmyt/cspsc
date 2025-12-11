@@ -205,15 +205,16 @@ function setupResizer(): void {
 
   let isResizing = false;
 
-  resizer.addEventListener("mousedown", (e: MouseEvent) => {
+  resizer.addEventListener("pointerdown", (e: PointerEvent) => {
     isResizing = true;
     resizer.classList.add("resizing");
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    resizer.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
 
-  document.addEventListener("mousemove", (e: MouseEvent) => {
+  document.addEventListener("pointermove", (e: PointerEvent) => {
     if (!isResizing) return;
 
     const containerRect = container.getBoundingClientRect();
@@ -228,12 +229,13 @@ function setupResizer(): void {
     }
   });
 
-  document.addEventListener("mouseup", () => {
+  document.addEventListener("pointerup", (e: PointerEvent) => {
     if (isResizing) {
       isResizing = false;
       resizer.classList.remove("resizing");
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      resizer.releasePointerCapture(e.pointerId);
     }
   });
 }
